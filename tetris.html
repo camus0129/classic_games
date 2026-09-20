@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1120">
+<title>俄罗斯方块 · 触屏版</title>
+
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b1120;
+    --panel: #162238;
+    --text: #edf3ff;
+    --muted: #92a4bf;
+    --accent: #64e5d6;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  body {
+    color: var(--text);
+    font-family:
+      -apple-system, BlinkMacSystemFont,
+      "Segoe UI", "Microsoft YaHei", sans-serif;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;
+    background:
+      radial-gradient(ellipse at 50% 0%, #1b2d4b, transparent 65%),
+      var(--bg);
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+    border: 1px solid #ffffff18;
+    border-radius: 12px;
+    background: #223551;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  button:active,
+  button.pressed {
+    background: #345172;
+    transform: scale(.96);
+  }
+
+  button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 560px;
+    height: var(--app-height, 100vh);
+    margin: auto;
+
+    padding: 10px;
+    padding-top: max(10px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
+    padding-right: max(10px, env(safe-area-inset-right, 0px));
+
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    gap: 9px;
+  }
+
+  @supports (height: 100dvh) {
+    .app {
+      height: 100dvh;
+    }
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .brand {
+    min-width: 0;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 19px;
+    letter-spacing: 2px;
+    white-space: nowrap;
+  }
+
+  .record {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 7px;
+  }
+
+  .header-actions button {
+    min-width: 58px;
+    min-height: 44px;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .primary {
+    background: var(--accent);
+    color: #073c35;
+    font-weight: 750;
+  }
+
+  .primary:active {
+    background: #8bf4e8;
+  }
+
+  /* 底部按键显示开关 */
+  .controls-switch {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+
+    flex: 0 0 44px;
+    width: 44px;
+    min-height: 44px;
+
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .switch-label {
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 12px;
+  }
+
+  .controls-switch input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: 0;
+    opacity: 0;
+  }
+
+  .switch-track {
+    position: relative;
+    display: block;
+    width: 30px;
+    height: 18px;
+    border-radius: 999px;
+    background: #43516a;
+    transition: background .18s ease;
+  }
+
+  .switch-track::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px #0004;
+    transition: transform .18s ease;
+  }
+
+  .controls-switch input:checked + .switch-track {
+    background: var(--accent);
+  }
+
+  .controls-switch input:checked + .switch-track::before {
+    transform: translateX(12px);
+  }
+
+  .controls-switch input:focus-visible + .switch-track {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  /* 得分信息 */
+  .dashboard {
+    display: grid;
+    grid-template-columns: 1.3fr .8fr .8fr 1fr;
+    gap: 7px;
+  }
+
+  .stat {
+    min-width: 0;
+    height: 65px;
+    padding: 8px 6px;
+    border: 1px solid #ffffff0b;
+    border-radius: 12px;
+    background: var(--panel);
+    text-align: center;
+  }
+
+  .label {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+
+  .value {
+    margin-top: 4px;
+    font-size: 22px;
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #score {
+    color: var(--accent);
+  }
+
+  .preview {
+    padding: 5px;
+  }
+
+  #next {
+    display: block;
+    width: 64px;
+    height: 42px;
+    margin: 0 auto;
+  }
+
+  /* 棋盘 */
+  .stage {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .board-wrap {
+    position: relative;
+    flex: none;
+    width: 1px;
+    height: 2px;
+    overflow: hidden;
+    border-radius: 9px;
+    background: #080f1b;
+    box-shadow:
+      0 0 0 1px #344862,
+      0 12px 35px #0005;
+  }
+
+  #board {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+    text-align: center;
+    background: #08101de8;
+  }
+
+  .overlay.hidden {
+    display: none;
+  }
+
+  .overlay h2 {
+    margin: 0 0 10px;
+    font-size: clamp(19px, 5vw, 26px);
+  }
+
+  .overlay p {
+    margin: 0 0 18px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.9;
+    white-space: pre-line;
+  }
+
+  .overlay button {
+    min-height: 46px;
+    padding: 10px 24px;
+  }
+
+  /* 触屏按钮 */
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .controls button {
+    min-width: 0;
+    min-height: 60px;
+    padding: 6px 0;
+    touch-action: none;
+  }
+
+  .controls .icon {
+    display: block;
+    font-size: 25px;
+    line-height: 29px;
+    font-weight: bold;
+  }
+
+  .controls .caption {
+    display: block;
+    margin-top: 2px;
+    color: #b8c9df;
+    font-size: 10px;
+  }
+
+  .controls .drop {
+    background: #21594f;
+  }
+
+  .controls .drop.pressed {
+    background: #328272;
+  }
+
+  .hint {
+    margin: 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 14px;
+  }
+
+  /* 隐藏底部按键时释放布局空间 */
+  .app.buttons-hidden {
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+  }
+
+  .app.buttons-hidden .controls {
+    display: none;
+  }
+
+  /* 小屏竖屏 */
+  @media (max-height: 650px) and (orientation: portrait) {
+    .app {
+      gap: 6px;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+    }
+
+    .stat {
+      height: 58px;
+      padding-top: 5px;
+    }
+
+    .preview {
+      padding-top: 2px;
+    }
+
+    .controls button {
+      min-height: 52px;
+    }
+
+    .hint {
+      display: none;
+    }
+
+    .app.buttons-hidden {
+      grid-template-rows: auto auto minmax(0, 1fr);
+    }
+  }
+
+  /* 手机横屏 */
+  @media (orientation: landscape) and (max-height: 600px) {
+    .app {
+      max-width: 950px;
+      grid-template-columns:
+        minmax(0, 1fr) minmax(290px, .9fr);
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 10px 18px;
+    }
+
+    .stage {
+      grid-column: 1;
+      grid-row: 1 / 4;
+    }
+
+    .header {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .dashboard {
+      grid-column: 2;
+      grid-row: 2;
+      align-self: center;
+    }
+
+    .controls {
+      grid-column: 2;
+      grid-row: 3;
+    }
+
+    .hint {
+      display: none;
+    }
+
+    h1 {
+      font-size: 17px;
+    }
+
+    .app.buttons-hidden {
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .app.buttons-hidden .stage {
+      grid-row: 1 / 3;
+    }
+  }
+
+  @media (max-width: 340px) {
+    h1 {
+      font-size: 17px;
+      letter-spacing: 1px;
+    }
+
+    .header-actions {
+      gap: 5px;
+    }
+
+    .header-actions button {
+      min-width: 52px;
+      padding: 8px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .switch-track,
+    .switch-track::before {
+      transition: none;
+    }
+  }
+</style>
+</head>
+
+<body>
+<main class="app" id="app">
+  <header class="header">
+    <div class="brand">
+      <h1>俄罗斯方块</h1>
+      <div class="record">
+        最高纪录 <span id="best">0</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <label class="controls-switch"
+             title="显示或隐藏底部操作按钮">
+        <span class="switch-label">按键</span>
+
+        <input
+          id="showControls"
+          type="checkbox"
+          role="switch"
+          aria-label="显示底部操作按钮"
+          aria-controls="touchControls"
+          checked
+        >
+
+        <span class="switch-track" aria-hidden="true"></span>
+      </label>
+
+      <button id="toggle"
+              class="primary"
+              type="button">开始</button>
+
+      <button id="restart"
+              type="button">重开</button>
+    </div>
+  </header>
+
+  <section class="dashboard" aria-label="游戏信息">
+    <div class="stat">
+      <div class="label">得分</div>
+      <div id="score" class="value">0</div>
+    </div>
+
+    <div class="stat">
+      <div class="label">等级</div>
+      <div id="level" class="value">1</div>
+    </div>
+
+    <div class="stat">
+      <div class="label">消行</div>
+      <div id="lines" class="value">0</div>
+    </div>
+
+    <div class="stat preview">
+      <div class="label">下一个</div>
+      <canvas id="next" aria-label="下一个方块"></canvas>
+    </div>
+  </section>
+
+  <section class="stage" id="stage">
+    <div class="board-wrap" id="boardWrap">
+      <canvas id="board" aria-label="俄罗斯方块棋盘"></canvas>
+
+      <div class="overlay" id="overlay">
+        <h2 id="overlayTitle">准备好了吗？</h2>
+        <p id="overlayText">轻点旋转，左右拖动
+快速下滑后松手，直接落地
+快速上滑后松手，反向旋转
+顶部“按键”开关可隐藏操作按钮</p>
+        <button id="overlayButton"
+                class="primary"
+                type="button">开始游戏</button>
+      </div>
+    </div>
+  </section>
+
+  <nav class="controls"
+       id="touchControls"
+       aria-label="游戏控制">
+    <button data-action="left"
+            aria-label="左移"
+            type="button">
+      <span class="icon">←</span>
+      <span class="caption">左移</span>
+    </button>
+
+    <button data-action="rotate"
+            aria-label="旋转"
+            type="button">
+      <span class="icon">↻</span>
+      <span class="caption">旋转</span>
+    </button>
+
+    <button data-action="right"
+            aria-label="右移"
+            type="button">
+      <span class="icon">→</span>
+      <span class="caption">右移</span>
+    </button>
+
+    <button data-action="down"
+            aria-label="下降"
+            type="button">
+      <span class="icon">↓</span>
+      <span class="caption">下降</span>
+    </button>
+
+    <button data-action="drop"
+            class="drop"
+            aria-label="直接落下"
+            type="button">
+      <span class="icon">⇓</span>
+      <span class="caption">落到底</span>
+    </button>
+  </nav>
+
+  <p class="hint">
+    轻点旋转 · 左右拖动 · 快下滑落地 · 快上滑反转
+  </p>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  // ================= 基础配置 =================
+
+  const $ = id => document.getElementById(id);
+
+  const app = $("app");
+  const boardCanvas = $("board");
+  const ctx = boardCanvas.getContext("2d");
+  const nextCanvas = $("next");
+  const nextCtx = nextCanvas.getContext("2d");
+  const controlsSwitch = $("showControls");
+
+  const COLS = 10;
+  const ROWS = 20;
+  const CELL = 30;
+  const LOGICAL_WIDTH = COLS * CELL;
+  const LOGICAL_HEIGHT = ROWS * CELL;
+
+  const BEST_STORAGE_KEY = "tetris_single_file_best";
+  const CONTROLS_STORAGE_KEY = "tetris_show_controls";
+
+  const COLORS = [
+    null,
+    "#46d7ee",
+    "#6289ff",
+    "#ffab55",
+    "#ffdc65",
+    "#65dd98",
+    "#b68aff",
+    "#ff718e"
+  ];
+
+  const SHAPES = [
+    [
+      [0,0,0,0],
+      [1,1,1,1],
+      [0,0,0,0],
+      [0,0,0,0]
+    ],
+    [
+      [2,0,0],
+      [2,2,2],
+      [0,0,0]
+    ],
+    [
+      [0,0,3],
+      [3,3,3],
+      [0,0,0]
+    ],
+    [
+      [4,4],
+      [4,4]
+    ],
+    [
+      [0,5,5],
+      [5,5,0],
+      [0,0,0]
+    ],
+    [
+      [0,6,0],
+      [6,6,6],
+      [0,0,0]
+    ],
+    [
+      [7,7,0],
+      [0,7,7],
+      [0,0,0]
+    ]
+  ];
+
+  const GESTURE = {
+    tapSlop: 10,
+    tapTime: 280,
+    swipeTime: 450,
+    swipeMin: 32,
+    swipeCells: 1.5,
+    axisRatio: 1.2
+  };
+
+  let board = emptyBoard();
+  let bag = [];
+  let current = null;
+  let next = null;
+
+  let score = 0;
+  let lines = 0;
+  let level = 1;
+  let best = 0;
+
+  let state = "idle";
+  let elapsed = 0;
+  let lastTime = 0;
+  let gesture = null;
+  let resizePending = false;
+
+  const heldPointers = new Map();
+
+  try {
+    const saved = Number(localStorage.getItem(BEST_STORAGE_KEY));
+
+    if (Number.isFinite(saved) && saved > 0) {
+      best = saved;
+    }
+  } catch (_) {
+    // 浏览器禁用本地存储时仍可正常游戏。
+  }
+
+  // ================= 数据与状态 =================
+
+  function emptyBoard() {
+    return Array.from(
+      { length: ROWS },
+      () => Array(COLS).fill(0)
+    );
+  }
+
+  // 七袋随机：每袋包含全部七种方块。
+  function takePiece() {
+    if (!bag.length) {
+      bag = [0, 1, 2, 3, 4, 5, 6];
+
+      for (let i = bag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [bag[i], bag[j]] = [bag[j], bag[i]];
+      }
+    }
+
+    return SHAPES[bag.pop()].map(row => row.slice());
+  }
+
+  function updateStats() {
+    if (score > best) {
+      best = score;
+
+      try {
+        localStorage.setItem(BEST_STORAGE_KEY, String(best));
+      } catch (_) {}
+    }
+
+    $("score").textContent = score;
+    $("lines").textContent = lines;
+    $("level").textContent = level;
+    $("best").textContent = best;
+
+    $("score").style.fontSize =
+      score >= 1000000 ? "15px" : "22px";
+  }
+
+  function releasePointer(id) {
+    const held = heldPointers.get(id);
+    if (!held) return;
+
+    clearTimeout(held.delay);
+    clearInterval(held.repeat);
+    held.button.classList.remove("pressed");
+    heldPointers.delete(id);
+  }
+
+  function cancelGesture() {
+    const old = gesture;
+    gesture = null;
+
+    if (!old) return;
+
+    try {
+      if (boardCanvas.hasPointerCapture(old.id)) {
+        boardCanvas.releasePointerCapture(old.id);
+      }
+    } catch (_) {}
+  }
+
+  function releaseAll() {
+    for (const id of heldPointers.keys()) {
+      releasePointer(id);
+    }
+
+    cancelGesture();
+  }
+
+  function setState(value) {
+    state = value;
+    releaseAll();
+
+    $("overlay").classList.toggle(
+      "hidden",
+      state === "running"
+    );
+
+    if (state === "running") {
+      $("toggle").textContent = "暂停";
+    } else if (state === "paused") {
+      $("toggle").textContent = "继续";
+      $("overlayTitle").textContent = "已暂停";
+      $("overlayText").textContent = "准备好后继续游戏";
+      $("overlayButton").textContent = "继续游戏";
+    } else if (state === "over") {
+      $("toggle").textContent = "开始";
+      $("overlayTitle").textContent = "游戏结束";
+      $("overlayText").textContent =
+        `本局得分 ${score}\n消除 ${lines} 行 · 等级 ${level}`;
+      $("overlayButton").textContent = "再来一局";
+    }
+
+    render();
+  }
+
+  function start() {
+    releaseAll();
+
+    board = emptyBoard();
+    bag = [];
+    current = null;
+
+    score = 0;
+    lines = 0;
+    level = 1;
+    elapsed = 0;
+
+    next = takePiece();
+
+    setState("running");
+    spawn();
+    updateStats();
+    render();
+  }
+
+  function toggle() {
+    if (state === "idle" || state === "over") {
+      start();
+    } else {
+      setState(state === "running" ? "paused" : "running");
+    }
+  }
+
+  function pauseForBackground() {
+    releaseAll();
+
+    if (state === "running") {
+      setState("paused");
+    }
+  }
+
+  // ================= 方块逻辑 =================
+
+  function collides(matrix, px, py) {
+    for (let y = 0; y < matrix.length; y++) {
+      for (let x = 0; x < matrix[y].length; x++) {
+        if (!matrix[y][x]) continue;
+
+        const bx = px + x;
+        const by = py + y;
+
+        if (bx < 0 || bx >= COLS || by >= ROWS) {
+          return true;
+        }
+
+        if (by >= 0 && board[by][bx]) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  function spawn() {
+    // 一次棋盘手势只控制一个方块。
+    cancelGesture();
+
+    current = {
+      matrix: next,
+      x: Math.floor((COLS - next[0].length) / 2),
+      y: 0
+    };
+
+    next = takePiece();
+    elapsed = 0;
+
+    drawNext();
+
+    if (collides(current.matrix, current.x, current.y)) {
+      setState("over");
+    }
+  }
+
+  function move(dx) {
+    if (!collides(
+      current.matrix,
+      current.x + dx,
+      current.y
+    )) {
+      current.x += dx;
+    }
+  }
+
+  function rotate(direction = 1) {
+    const matrix = current.matrix;
+    const size = matrix.length;
+
+    // O 型方块无需旋转。
+    if (size === 2) return;
+
+    const rotated = Array.from(
+      { length: size },
+      () => Array(size).fill(0)
+    );
+
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        if (direction === 1) {
+          rotated[x][size - 1 - y] = matrix[y][x];
+        } else {
+          rotated[size - 1 - x][y] = matrix[y][x];
+        }
+      }
+    }
+
+    // 简化踢墙：旋转受阻时尝试微调位置。
+    const kicks = [
+      [0,0],
+      [-1,0],
+      [1,0],
+      [-2,0],
+      [2,0],
+      [0,-1],
+      [-1,-1],
+      [1,-1],
+      [0,-2]
+    ];
+
+    for (const [dx, dy] of kicks) {
+      if (!collides(
+        rotated,
+        current.x + dx,
+        current.y + dy
+      )) {
+        current.matrix = rotated;
+        current.x += dx;
+        current.y += dy;
+        return;
+      }
+    }
+  }
+
+  function down(manual = false) {
+    if (!collides(
+      current.matrix,
+      current.x,
+      current.y + 1
+    )) {
+      current.y++;
+
+      if (manual) {
+        score++;
+        updateStats();
+      }
+    } else {
+      lock();
+    }
+
+    elapsed = 0;
+  }
+
+  function hardDrop() {
+    let distance = 0;
+
+    while (!collides(
+      current.matrix,
+      current.x,
+      current.y + 1
+    )) {
+      current.y++;
+      distance++;
+    }
+
+    score += distance * 2;
+    lock();
+  }
+
+  function lock() {
+    // 方块仍有部分位于棋盘上方时，结束游戏。
+    for (let y = 0; y < current.matrix.length; y++) {
+      for (let x = 0; x < current.matrix[y].length; x++) {
+        if (current.matrix[y][x] && current.y + y < 0) {
+          updateStats();
+          setState("over");
+          return;
+        }
+      }
+    }
+
+    current.matrix.forEach((row, y) => {
+      row.forEach((value, x) => {
+        if (value) {
+          board[current.y + y][current.x + x] = value;
+        }
+      });
+    });
+
+    const remaining = board.filter(
+      row => !row.every(Boolean)
+    );
+
+    const cleared = ROWS - remaining.length;
+
+    if (cleared) {
+      score += [0, 100, 300, 500, 800][cleared] * level;
+      lines += cleared;
+      level = 1 + Math.floor(lines / 10);
+
+      while (remaining.length < ROWS) {
+        remaining.unshift(Array(COLS).fill(0));
+      }
+
+      board = remaining;
+    }
+
+    updateStats();
+    spawn();
+  }
+
+  function action(name) {
+    if (state !== "running" || !current) return;
+
+    switch (name) {
+      case "left":
+        move(-1);
+        break;
+      case "right":
+        move(1);
+        break;
+      case "rotate":
+        rotate(1);
+        break;
+      case "reverse":
+        rotate(-1);
+        break;
+      case "down":
+        down(true);
+        break;
+      case "drop":
+        hardDrop();
+        break;
+    }
+
+    render();
+  }
+
+  // ================= 绘制 =================
+
+  function block(context, x, y, size, value, ghost = false) {
+    context.save();
+
+    if (ghost) {
+      context.globalAlpha = .55;
+      context.strokeStyle = COLORS[value];
+      context.lineWidth = 1.5;
+      context.setLineDash([4, 3]);
+
+      context.strokeRect(
+        x + 3, y + 3, size - 6, size - 6
+      );
+    } else {
+      context.fillStyle = COLORS[value];
+      context.fillRect(
+        x + 1, y + 1, size - 2, size - 2
+      );
+
+      context.fillStyle = "#ffffff40";
+      context.fillRect(
+        x + 2, y + 2, size - 4, 3
+      );
+
+      context.fillStyle = "#00000028";
+      context.fillRect(
+        x + 2, y + size - 5, size - 4, 3
+      );
+    }
+
+    context.restore();
+  }
+
+  function drawMatrix(matrix, px, py, ghost = false) {
+    matrix.forEach((row, y) => {
+      row.forEach((value, x) => {
+        if (value) {
+          block(
+            ctx,
+            (px + x) * CELL,
+            (py + y) * CELL,
+            CELL,
+            value,
+            ghost
+          );
+        }
+      });
+    });
+  }
+
+  function drawNext() {
+    nextCtx.clearRect(0, 0, 64, 42);
+    if (!next) return;
+
+    const cells = [];
+
+    next.forEach((row, y) => {
+      row.forEach((value, x) => {
+        if (value) cells.push({ x, y, value });
+      });
+    });
+
+    const minX = Math.min(...cells.map(c => c.x));
+    const maxX = Math.max(...cells.map(c => c.x));
+    const minY = Math.min(...cells.map(c => c.y));
+    const maxY = Math.max(...cells.map(c => c.y));
+
+    const size = 14;
+    const ox = (64 - (maxX - minX + 1) * size) / 2;
+    const oy = (42 - (maxY - minY + 1) * size) / 2;
+
+    cells.forEach(cell => {
+      block(
+        nextCtx,
+        ox + (cell.x - minX) * size,
+        oy + (cell.y - minY) * size,
+        size,
+        cell.value
+      );
+    });
+  }
+
+  function render() {
+    ctx.fillStyle = "#080f1b";
+    ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+
+    ctx.strokeStyle = "#ffffff08";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+
+    for (let x = 1; x < COLS; x++) {
+      ctx.moveTo(x * CELL, 0);
+      ctx.lineTo(x * CELL, LOGICAL_HEIGHT);
+    }
+
+    for (let y = 1; y < ROWS; y++) {
+      ctx.moveTo(0, y * CELL);
+      ctx.lineTo(LOGICAL_WIDTH, y * CELL);
+    }
+
+    ctx.stroke();
+
+    drawMatrix(board, 0, 0);
+
+    if (!current) return;
+
+    if (state !== "over") {
+      let ghostY = current.y;
+
+      while (!collides(
+        current.matrix,
+        current.x,
+        ghostY + 1
+      )) {
+        ghostY++;
+      }
+
+      drawMatrix(
+        current.matrix,
+        current.x,
+        ghostY,
+        true
+      );
+    }
+
+    drawMatrix(
+      current.matrix,
+      current.x,
+      current.y
+    );
+  }
+
+  // ================= 屏幕适配 =================
+
+  function resizeCanvas() {
+    const rect = $("stage").getBoundingClientRect();
+
+    const width = Math.max(
+      1,
+      Math.floor(Math.min(
+        rect.width - 4,
+        (rect.height - 4) / 2
+      ))
+    );
+
+    const height = width * 2;
+    const dpr = window.devicePixelRatio || 1;
+
+    $("boardWrap").style.width = width + "px";
+    $("boardWrap").style.height = height + "px";
+
+    boardCanvas.width = Math.round(width * dpr);
+    boardCanvas.height = Math.round(height * dpr);
+
+    // 使用固定逻辑坐标，独立适配屏幕分辨率。
+    ctx.setTransform(
+      boardCanvas.width / LOGICAL_WIDTH, 0,
+      0, boardCanvas.height / LOGICAL_HEIGHT,
+      0, 0
+    );
+
+    nextCanvas.width = Math.round(64 * dpr);
+    nextCanvas.height = Math.round(42 * dpr);
+
+    nextCtx.setTransform(
+      nextCanvas.width / 64, 0,
+      0, nextCanvas.height / 42,
+      0, 0
+    );
+
+    drawNext();
+    render();
+  }
+
+  function scheduleResize() {
+    if (resizePending) return;
+    resizePending = true;
+
+    requestAnimationFrame(() => {
+      resizePending = false;
+
+      // 尺寸变化后旧手势坐标不再适用。
+      cancelGesture();
+
+      // 不支持 dvh 时，通过 JS 更新视口高度。
+      if (!CSS.supports("height", "100dvh")) {
+        const viewport = window.visualViewport;
+
+        const height =
+          viewport && viewport.scale === 1
+            ? viewport.height
+            : window.innerHeight;
+
+        document.documentElement.style.setProperty(
+          "--app-height",
+          height + "px"
+        );
+      }
+
+      resizeCanvas();
+    });
+  }
+
+  window.addEventListener("resize", scheduleResize);
+  window.addEventListener("orientationchange", scheduleResize);
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener(
+      "resize",
+      scheduleResize
+    );
+  }
+
+  if ("ResizeObserver" in window) {
+    const observer = new ResizeObserver(scheduleResize);
+    observer.observe($("stage"));
+  }
+
+  // ================= 按键显示开关 =================
+
+  function applyControlsVisibility(visible, persist = false) {
+    // 防止隐藏按钮后长按仍继续执行。
+    releaseAll();
+
+    controlsSwitch.checked = visible;
+    app.classList.toggle("buttons-hidden", !visible);
+
+    if (persist) {
+      try {
+        localStorage.setItem(
+          CONTROLS_STORAGE_KEY,
+          visible ? "1" : "0"
+        );
+      } catch (_) {}
+    }
+
+    scheduleResize();
+  }
+
+  controlsSwitch.addEventListener("change", () => {
+    applyControlsVisibility(controlsSwitch.checked, true);
+  });
+
+  // ================= 触屏按钮与长按 =================
+
+  document.querySelectorAll("[data-action]").forEach(button => {
+    const name = button.dataset.action;
+    const repeatable = ["left", "right", "down"].includes(name);
+
+    button.addEventListener("pointerdown", event => {
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
+
+      if (event.cancelable) event.preventDefault();
+      if (state !== "running") return;
+
+      cancelGesture();
+
+      // 同一按钮只保留一组长按计时器。
+      for (const held of heldPointers.values()) {
+        if (held.button === button) return;
+      }
+
+      try {
+        button.setPointerCapture(event.pointerId);
+      } catch (_) {}
+
+      action(name);
+
+      if (state !== "running") return;
+
+      button.classList.add("pressed");
+
+      const held = {
+        button,
+        delay: null,
+        repeat: null
+      };
+
+      heldPointers.set(event.pointerId, held);
+
+      if (repeatable) {
+        held.delay = setTimeout(() => {
+          if (!heldPointers.has(event.pointerId)) return;
+
+          held.repeat = setInterval(() => {
+            action(name);
+          }, name === "down" ? 45 : 65);
+        }, 170);
+      }
+    }, { passive: false });
+
+    [
+      "pointerup",
+      "pointercancel",
+      "lostpointercapture"
+    ].forEach(type => {
+      button.addEventListener(type, event => {
+        releasePointer(event.pointerId);
+      });
+    });
+
+    // 保留键盘或辅助技术触发按钮的能力。
+    button.addEventListener("click", event => {
+      if (event.detail === 0) {
+        action(name);
+      }
+    });
+
+    button.addEventListener("contextmenu", event => {
+      event.preventDefault();
+    });
+  });
+
+  $("toggle").addEventListener("click", toggle);
+  $("overlayButton").addEventListener("click", toggle);
+  $("restart").addEventListener("click", start);
+
+  // ================= 棋盘手势 =================
+
+  function gestureIsValid(g) {
+    return g &&
+           state === "running" &&
+           current === g.piece;
+  }
+
+  function trackGesture(event) {
+    const g = gesture;
+
+    if (!g || event.pointerId !== g.id) return;
+
+    if (!gestureIsValid(g)) {
+      cancelGesture();
+      return;
+    }
+
+    if (event.cancelable) event.preventDefault();
+
+    const dx = event.clientX - g.startX;
+    const dy = event.clientY - g.startY;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+
+    g.maxDistance = Math.max(
+      g.maxDistance,
+      Math.hypot(dx, dy)
+    );
+
+    // 超过抖动阈值后锁定手势主方向。
+    if (!g.axis && g.maxDistance > GESTURE.tapSlop) {
+      if (absX > absY * GESTURE.axisRatio) {
+        g.axis = "x";
+      } else if (absY > absX * GESTURE.axisRatio) {
+        g.axis = "y";
+      }
+    }
+
+    if (g.axis !== "x") return;
+
+    // 手指拖过一格，方块移动一格。
+    const steps = Math.trunc(
+      (event.clientX - g.anchorX) / g.cellSize
+    );
+
+    if (!steps) return;
+
+    const direction = Math.sign(steps);
+    const count = Math.min(Math.abs(steps), COLS);
+
+    for (let i = 0; i < count; i++) {
+      move(direction);
+    }
+
+    // 碰到边界后仍消费距离，便于立即反向拖动。
+    g.anchorX += steps * g.cellSize;
+
+    render();
+  }
+
+  boardCanvas.addEventListener("pointerdown", event => {
+    if (state !== "running" || !current) return;
+    if (!event.isPrimary || gesture) return;
+
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    if (event.cancelable) event.preventDefault();
+
+    releaseAll();
+
+    const rect = boardCanvas.getBoundingClientRect();
+
+    gesture = {
+      id: event.pointerId,
+      piece: current,
+      startX: event.clientX,
+      startY: event.clientY,
+      anchorX: event.clientX,
+      startTime: performance.now(),
+      cellSize: Math.max(1, rect.width / COLS),
+      maxDistance: 0,
+      axis: null
+    };
+
+    try {
+      boardCanvas.setPointerCapture(event.pointerId);
+    } catch (_) {}
+  }, { passive: false });
+
+  boardCanvas.addEventListener(
+    "pointermove",
+    trackGesture,
+    { passive: false }
+  );
+
+  boardCanvas.addEventListener("pointerup", event => {
+    const g = gesture;
+
+    if (!g || event.pointerId !== g.id) return;
+
+    if (event.cancelable) event.preventDefault();
+
+    // 松手位置也计入最后一段移动。
+    trackGesture(event);
+
+    if (gesture !== g) return;
+
+    const valid = gestureIsValid(g);
+    const dx = event.clientX - g.startX;
+    const dy = event.clientY - g.startY;
+    const duration = performance.now() - g.startTime;
+
+    cancelGesture();
+
+    if (!valid) return;
+
+    // 轻点：顺时针旋转。
+    if (
+      !g.axis &&
+      g.maxDistance <= GESTURE.tapSlop &&
+      duration <= GESTURE.tapTime
+    ) {
+      action("rotate");
+      return;
+    }
+
+    // 横向拖动已经实时处理。
+    if (g.axis !== "y") return;
+
+    const minDistance = Math.max(
+      GESTURE.swipeMin,
+      g.cellSize * GESTURE.swipeCells
+    );
+
+    const verticalSwipe =
+      duration <= GESTURE.swipeTime &&
+      Math.abs(dy) >= minDistance &&
+      Math.abs(dy) > Math.abs(dx) * GESTURE.axisRatio;
+
+    if (!verticalSwipe) return;
+
+    if (dy > 0) {
+      // 快速向下滑动并松手：直接落地。
+      action("drop");
+    } else {
+      // 快速向上滑动并松手：逆时针旋转。
+      action("reverse");
+    }
+  }, { passive: false });
+
+  function onGestureCancelled(event) {
+    if (gesture && event.pointerId === gesture.id) {
+      cancelGesture();
+    }
+  }
+
+  boardCanvas.addEventListener(
+    "pointercancel",
+    onGestureCancelled
+  );
+
+  boardCanvas.addEventListener(
+    "lostpointercapture",
+    onGestureCancelled
+  );
+
+  boardCanvas.addEventListener("contextmenu", event => {
+    event.preventDefault();
+  });
+
+  // 第二根手指加入时取消当前棋盘手势，防止误操作。
+  document.addEventListener("pointerdown", event => {
+    if (gesture && event.pointerId !== gesture.id) {
+      cancelGesture();
+    }
+  }, { capture: true });
+
+  // ================= 电脑键盘 =================
+
+  const keyActions = {
+    ArrowLeft: "left",
+    ArrowRight: "right",
+    ArrowDown: "down",
+    ArrowUp: "rotate",
+    KeyX: "rotate",
+    KeyZ: "reverse",
+    Space: "drop"
+  };
+
+  window.addEventListener("keydown", event => {
+    const code = event.code;
+
+    const onInteractiveElement =
+      event.target instanceof Element &&
+      event.target.closest(
+        "button, input, select, textarea, a[href], [contenteditable='true']"
+      );
+
+    // 保留按钮和开关的原生空格、Enter 操作。
+    if (
+      onInteractiveElement &&
+      (code === "Enter" || code === "Space")
+    ) {
+      return;
+    }
+
+    if (keyActions[code]) {
+      event.preventDefault();
+
+      if (
+        event.repeat &&
+        ["rotate", "reverse", "drop"].includes(keyActions[code])
+      ) {
+        return;
+      }
+
+      action(keyActions[code]);
+    } else if (["KeyP", "Escape", "Enter"].includes(code)) {
+      event.preventDefault();
+
+      if (event.repeat) return;
+
+      if (code === "Enter") {
+        toggle();
+      } else if (state === "running" || state === "paused") {
+        toggle();
+      }
+    }
+  });
+
+  // ================= 页面生命周期 =================
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      pauseForBackground();
+    }
+  });
+
+  window.addEventListener("blur", pauseForBackground);
+  window.addEventListener("pagehide", pauseForBackground);
+  window.addEventListener("pageshow", scheduleResize);
+
+  // ================= 游戏主循环 =================
+
+  function frame(time) {
+    const delta = Math.min(time - lastTime, 100);
+    lastTime = time;
+
+    if (state === "running") {
+      elapsed += delta;
+
+      const interval = Math.max(
+        85,
+        800 * Math.pow(.82, level - 1)
+      );
+
+      if (elapsed >= interval) {
+        down();
+      }
+
+      render();
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  // ================= 初始化 =================
+
+  let initialControlsVisible = true;
+
+  try {
+    initialControlsVisible =
+      localStorage.getItem(CONTROLS_STORAGE_KEY) !== "0";
+  } catch (_) {}
+
+  applyControlsVisibility(initialControlsVisible);
+  updateStats();
+  scheduleResize();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
